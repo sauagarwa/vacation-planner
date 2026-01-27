@@ -1,0 +1,8 @@
+
+> vacation-planner-frontend@0.1.0 dev
+> vite --host 127.0.0.1 --port 5173
+
+
+  VITE v5.4.11  ready in 670 ms
+
+  ➜  Local:   http://127.0.0.1:5173/

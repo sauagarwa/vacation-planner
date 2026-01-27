@@ -1,0 +1,39 @@
+destination_research_task:
+  description: >
+    Research {destination} for a {num_days}-day trip between {start_date} and {end_date}.
+    Identify top attractions, day-trip ideas, seasonal/weather notes, and safety or
+    logistics considerations. Focus on the user's places of interest: {preferences}.
+    Use web research.
+  expected_output: >
+    A concise list of 10-15 findings with sources and why each is relevant.
+  agent: destination_researcher
+
+itinerary_options_task:
+  description: >
+    Using the research context, propose 2-3 itinerary options for {destination}
+    that fit {num_days} days between {start_date} and {end_date}. Each option should
+    include daily themes, key activities, and time estimates. Tailor to interests:
+    {preferences}. Ask the user for changes or preferences at the end.
+  expected_output: >
+    2-3 itinerary options with daily breakdowns, followed by a short question
+    asking the user for changes or preferences.
+  agent: destination_researcher
+
+hotel_research_task:
+  description: >
+    Find hotel options in {destination} for {start_date} to {end_date}. Use the
+    user's {budget} and {preferences} if provided. Focus on location, price range,
+    and notable amenities. Use the SerpApi Google Hotels API.
+  expected_output: >
+    5-8 hotel options with name, location, price range, and short notes.
+  agent: hotel_researcher
+
+flight_research_task:
+  description: >
+    Research flight options from {origin} to {destination} for {start_date} to {end_date}.
+    Use cabin class {cabin}. Include 3-6 practical itineraries with duration,
+    stops, and rough price range. Use the SerpApi Google Flights API.
+    Always include return_date and set it to {end_date}.
+  expected_output: >
+    3-6 flight options with key details and a short recommendation.
+  agent: flight_researcher
