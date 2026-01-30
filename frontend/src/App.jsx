@@ -247,7 +247,7 @@ export default function App() {
           appendMessage("assistant", `Something went wrong: ${data.error}`);
         }
         if (data.done) {
-          if (!completionMessageSent.current) {
+          if (data.result && !completionMessageSent.current) {
             setResult(data.result);
             appendMessage(
               "assistant",
@@ -392,12 +392,8 @@ export default function App() {
                         </button>
                       </div>
                       {task.output && <p>{task.output.summary}</p>}
-                      {task.output ? (
+                      {task.output && expandedTasks[task.key] && (
                         <pre>{formatResult(task.output)}</pre>
-                      ) : (
-                        expandedTasks[task.key] && (
-                          <pre>{formatResult("")}</pre>
-                        )
                       )}
                     </div>
                   ))}

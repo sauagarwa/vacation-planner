@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  travel-research-mcp:
+    build:
+      context: ./travel_research_mcp
+      dockerfile: Containerfile
+    environment:
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - HOST=0.0.0.0
+      - PORT=7001
+    ports:
+      - "7001:7001"
+    restart: unless-stopped
+
+  hotel-mcp:
+    build:
+      context: ./hotel_mcp
+      dockerfile: Containerfile
+    environment:
+      - SERPAPI_API_KEY=${SERPAPI_API_KEY}
+      - HOST=0.0.0.0
+      - PORT=7002
+    ports:
+      - "7002:7002"
+    restart: unless-stopped
+
+  flight-mcp:
+    build:
+      context: ./flight_mcp
+      dockerfile: Containerfile
+    environment:
+      - SERPAPI_API_KEY=${SERPAPI_API_KEY}
+      - HOST=0.0.0.0
+      - PORT=7003
+    ports:
+      - "7003:7003"
+    restart: unless-stopped

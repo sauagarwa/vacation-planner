@@ -5,15 +5,21 @@ description = "Vacation planner using crewAI"
 authors = [{ name = "Your Name", email = "you@example.com" }]
 requires-python = ">=3.10,<3.13"
 dependencies = [
-    "crewai[tools]==1.4.1",
+    "crewai[tools]>=1.6.1",
     "fastapi==0.115.8",
+    "mcp>=1.26.0",
     "openai==1.63.0",
     "requests==2.32.5",
     "uvicorn==0.34.0"
 ]
 
 [project.scripts]
-vacation-planner = "vacation-planner.main:run"
+agentic_ai = "agent.main:run"
+run_crew = "agent.main:run"
+train = "agent.main:train"
+replay = "agent.main:replay"
+test = "agent.main:test"
+run_with_trigger = "agent.main:run_with_trigger"
 
 [build-system]
 requires = ["hatchling"]
@@ -21,3 +27,6 @@ build-backend = "hatchling.build"
 
 [tool.crewai]
 type = "crew"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent"]
