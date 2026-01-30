@@ -38,6 +38,7 @@ export default function App() {
   const [showFullLog, setShowFullLog] = useState(false);
   const [expandedTasks, setExpandedTasks] = useState({});
   const [jobDone, setJobDone] = useState(false);
+  const [completedTaskLogs, setCompletedTaskLogs] = useState({});
   const completionMessageSent = useRef(false);
   const taskSequence = [
     "Destination research",
@@ -91,6 +92,13 @@ export default function App() {
       const line = cleanedLogs[i];
       const match = keys.find((key) => line.includes(key));
       if (match) return match;
+      if (line.includes("Flight Research Specialist")) return "flight_research_task";
+      if (line.includes("Hotel Research Specialist")) return "hotel_research_task";
+      if (line.includes("Travel Research Specialist")) return "destination_research_task";
+      if (line.toLowerCase().includes("itinerary option")) return "itinerary_options_task";
+    }
+    if (cleanedLogs.length) {
+      return "destination_research_task";
     }
     return "";
   }, [cleanedLogs, jobDone, taskLabels]);
@@ -103,6 +111,27 @@ export default function App() {
     const keys = taskData.map((task) => task.key);
     let currentTask = "";
 
+    const matchTaskFromLine = (line) => {
+      const directMatch = keys.find((key) => line.includes(key));
+      if (directMatch) return directMatch;
+      if (line.includes("Travel Research Specialist")) {
+        if (line.toLowerCase().includes("itinerary")) {
+          return "itinerary_options_task";
+        }
+        return "destination_research_task";
+      }
+      if (line.includes("Hotel Research Specialist")) {
+        return "hotel_research_task";
+      }
+      if (line.includes("Flight Research Specialist")) {
+        return "flight_research_task";
+      }
+      if (line.toLowerCase().includes("itinerary option")) {
+        return "itinerary_options_task";
+      }
+      return "";
+    };
+
     const pushLine = (taskKey, line) => {
       if (!taskKey) return;
       const taskLines = map[taskKey];
@@ -113,11 +142,9 @@ export default function App() {
     };
 
     cleanedLogs.forEach((line) => {
-      const matchingKey = keys.find((key) => line.includes(key));
+      const matchingKey = matchTaskFromLine(line);
       if (matchingKey) {
         currentTask = matchingKey;
-        pushLine(currentTask, line);
-        return;
       }
       if (currentTask) {
         pushLine(currentTask, line);
@@ -152,6 +179,7 @@ export default function App() {
     setShowFullLog(false);
     completionMessageSent.current = false;
     setJobDone(false);
+    setCompletedTaskLogs({});
     setExpandedTasks({
       destination_research_task: true,
       itinerary_options_task: true,
@@ -257,7 +285,14 @@ export default function App() {
           }
           setLoading(false);
           setJobDone(true);
+          setCompletedTaskLogs(taskLogs);
           setJobId("");
+          setExpandedTasks({
+            destination_research_task: false,
+            itinerary_options_task: false,
+            hotel_research_task: false,
+            flight_research_task: false,
+          });
         }
       } catch (err) {
         if (!cancelled) {
@@ -363,11 +398,11 @@ export default function App() {
             )}
           </div>
         )}
-        {parsed && result && (
+        {parsed && (result || Object.keys(completedTaskLogs).length > 0) && (
           <div className="card">
             <h2>Plan Output</h2>
-            <pre>{formatResult(result)}</pre>
-            {taskOutputs.length > 0 && (
+            {result && <pre>{formatResult(result)}</pre>}
+            {(taskOutputs.length > 0 || Object.keys(completedTaskLogs).length > 0) && (
               <>
                 <h3>Task Outputs</h3>
                 <div className="task-list">
@@ -392,8 +427,20 @@ export default function App() {
                         </button>
                       </div>
                       {task.output && <p>{task.output.summary}</p>}
-                      {task.output && expandedTasks[task.key] && (
-                        <pre>{formatResult(task.output)}</pre>
+                      {!task.output && completedTaskLogs[task.key] && (
+                        <p>Completed</p>
+                      )}
+                      {task.output && !expandedTasks[task.key] && (
+                        <div className="task-latest">
+                          {formatResult(task.output).split("\n")[0]}
+                        </div>
+                      )}
+                      {expandedTasks[task.key] && (
+                        <pre>
+                          {task.output
+                            ? formatResult(task.output)
+                            : (completedTaskLogs[task.key] || []).join("\n")}
+                        </pre>
                       )}
                     </div>
                   ))}
@@ -404,11 +451,12 @@ export default function App() {
         )}
 
         <form onSubmit={handleSubmit} className="composer">
-          <input
+          <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Type your response..."
             disabled={loading}
+            rows={3}
           />
           <button type="submit" disabled={loading}>
             Send

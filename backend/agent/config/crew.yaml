@@ -1,0 +1,40 @@
+crew:
+  name: vacation-planner
+  description: Vacation planning crew that researches destinations, hotels, and flights.
+  process: sequential
+  verbose: true
+
+# These are relative to this crew.yaml (i.e., config/agents.yaml, config/tasks.yaml)
+includes:
+  agents: agents.yaml
+  tasks: tasks.yaml
+
+# MCP wiring lives here so agents.yaml stays clean and reusable.
+# Uses SSE (/sse) by default; you can override URLs via env vars.
+mcp:
+  transport: ${MCP_TRANSPORT:sse}
+
+  servers:
+    travel_research:
+      url: ${TRAVEL_RESEARCH_MCP_URL:http://localhost:7001/sse}
+      allowed_tools:
+        - tavily_travel_search
+
+    hotel:
+      url: ${HOTEL_MCP_URL:http://localhost:7002/sse}
+      allowed_tools:
+        - google_hotels_search
+
+    flight:
+      url: ${FLIGHT_MCP_URL:http://localhost:7003/sse}
+      allowed_tools:
+        - google_flights_search
+
+  # Map each agent to the MCP server(s) it should use
+  agent_bindings:
+    destination_researcher:
+      - travel_research
+    hotel_researcher:
+      - hotel
+    flight_researcher:
+      - flight
