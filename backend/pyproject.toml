@@ -7,6 +7,7 @@ requires-python = ">=3.10,<3.13"
 dependencies = [
     "crewai[tools]>=1.6.1",
     "fastapi==0.115.8",
+    "langgraph>=0.2.0",
     "mcp>=1.26.0",
     "openai==1.63.0",
     "requests==2.32.5",
@@ -14,12 +15,12 @@ dependencies = [
 ]
 
 [project.scripts]
-agentic_ai = "agent.main:run"
-run_crew = "agent.main:run"
-train = "agent.main:train"
-replay = "agent.main:replay"
-test = "agent.main:test"
-run_with_trigger = "agent.main:run_with_trigger"
+agentic_ai = "agent.crewai.main:run"
+run_crew = "agent.crewai.main:run"
+train = "agent.crewai.main:train"
+replay = "agent.crewai.main:replay"
+test = "agent.crewai.main:test"
+run_with_trigger = "agent.crewai.main:run_with_trigger"
 
 [build-system]
 requires = ["hatchling"]

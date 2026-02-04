@@ -49,18 +49,37 @@ def google_hotels_search(
     if adults:
         params["adults"] = adults
 
-    response = requests.get(
-        "https://serpapi.com/search.json",
-        params=params,
-        timeout=30,
-    )
-    if response.status_code >= 400:
-        return f"SerpApi error {response.status_code}: {response.text}"
-    response.raise_for_status()
-    data = response.json()
+    def _fetch(search_params: Dict[str, Any]) -> Dict[str, Any]:
+        response = requests.get(
+            "https://serpapi.com/search.json",
+            params=search_params,
+            timeout=30,
+        )
+        if response.status_code >= 400:
+            raise RuntimeError(f"SerpApi error {response.status_code}: {response.text}")
+        response.raise_for_status()
+        return response.json()
+
+    try:
+        data = _fetch(params)
+    except RuntimeError as exc:
+        return str(exc)
+
     properties = data.get("properties") or data.get("hotels") or []
     if not properties:
-        return "No hotels returned from SerpApi."
+        # Retry with a more explicit query if the destination is broad.
+        retry_params = dict(params)
+        retry_params["q"] = f"{query} hotels"
+        try:
+            data = _fetch(retry_params)
+        except RuntimeError as exc:
+            return str(exc)
+        properties = data.get("properties") or data.get("hotels") or []
+        if not properties:
+            return (
+                "No hotels returned from SerpApi. "
+                f"Tried query='{params['q']}' and '{retry_params['q']}'."
+            )
 
     formatted = []
     for prop in properties[:6]:

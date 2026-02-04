@@ -1,4 +1,5 @@
 import logging
+import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +8,8 @@ from uuid import uuid4
 import threading
 import contextlib
 
-from agent.crew import AgenticAi
+from agent.crewai.crew import AgenticAi
+from agent.langgraph.runner import LangGraphPlanner
 from llm_parser import parse_trip_request
 
 
@@ -16,41 +18,6 @@ logger = logging.getLogger("vacation_planner")
 
 app = FastAPI(title="Vacation Planner API")
 
-# Workaround for CrewAI MCP tools_list UnboundLocalError in some versions.
-# try:
-#     import crewai.agent.core as _crewai_core
-
-#     _orig_get_native_mcp_tools = _crewai_core.Agent._get_native_mcp_tools
-#     _orig_get_mcp_tools = _crewai_core.Agent.get_mcp_tools
-
-#     def _safe_get_native_mcp_tools(self, mcp_config):
-#         try:
-#             return _orig_get_native_mcp_tools(self, mcp_config)
-#         except UnboundLocalError:
-#             logger.warning("MCP tools_list bug encountered, returning no tools")
-#             return [], None
-#         except RuntimeError as exc:
-#             message = str(exc).lower()
-#             if "tools_list" in message:
-#                 logger.warning("MCP tools_list runtime error encountered, returning no tools")
-#                 return [], None
-#             raise
-
-#     _crewai_core.Agent._get_native_mcp_tools = _safe_get_native_mcp_tools
-
-#     def _safe_get_mcp_tools(self, mcps):
-#         try:
-#             return _orig_get_mcp_tools(self, mcps)
-#         except RuntimeError as exc:
-#             message = str(exc).lower()
-#             if "tools_list" in message:
-#                 logger.warning("MCP tools_list runtime error encountered in get_mcp_tools")
-#                 return []
-#             raise
-
-#     _crewai_core.Agent.get_mcp_tools = _safe_get_mcp_tools
-# except Exception:
-#     logger.exception("Failed to apply MCP tools_list workaround")
 
 app.add_middleware(
     CORSMiddleware,
@@ -89,6 +56,7 @@ class ParseResponse(BaseModel):
 
 
 JOBS: dict[str, dict] = {}
+LANGGRAPH_JOBS: dict[str, dict] = {}
 
 
 class LogCapture:
@@ -147,6 +115,34 @@ def _run_job(job_id: str, inputs: dict) -> None:
         job["done"] = True
 
 
+def _run_langgraph_job(job_id: str, inputs: dict) -> None:
+    job = LANGGRAPH_JOBS[job_id]
+    capture = LogCapture(job)
+    try:
+        logger.info("LangGraph job %s started", job_id)
+        config_path = os.getenv("LANGGRAPH_CONFIG_PATH")
+        with contextlib.redirect_stdout(capture), contextlib.redirect_stderr(capture):
+            def _on_node_complete(name, result, outputs, tasks_output):
+                job["partial_result"] = {
+                    "summary": "LangGraph plan in progress.",
+                    "raw": "LangGraph plan in progress.",
+                    "tasks_output": list(tasks_output),
+                    "outputs": dict(outputs),
+                }
+
+            planner = LangGraphPlanner(
+                config_path=config_path, on_node_complete=_on_node_complete
+            )
+            result = planner.run(inputs)
+        job["result"] = result
+    except Exception as exc:
+        logger.exception("LangGraph job %s failed", job_id)
+        job["error"] = str(exc)
+    finally:
+        logger.info("LangGraph job %s completed", job_id)
+        job["done"] = True
+
+
 @app.post("/plan/start")
 def start_plan(payload: PlanRequest) -> dict:
     logger.info("Async plan requested")
@@ -156,6 +152,27 @@ def start_plan(payload: PlanRequest) -> dict:
     job_id = str(uuid4())
     JOBS[job_id] = {"logs": [], "done": False, "result": None, "error": None}
     thread = threading.Thread(target=_run_job, args=(job_id, inputs), daemon=True)
+    thread.start()
+    return {"job_id": job_id}
+
+
+@app.post("/langgraph/plan/start")
+def start_langgraph_plan(payload: PlanRequest) -> dict:
+    logger.info("Async LangGraph plan requested")
+    inputs = payload.model_dump()
+    if inputs.get("interests") and not inputs.get("preferences"):
+        inputs["preferences"] = inputs["interests"]
+    job_id = str(uuid4())
+    LANGGRAPH_JOBS[job_id] = {
+        "logs": [],
+        "done": False,
+        "result": None,
+        "partial_result": None,
+        "error": None,
+    }
+    thread = threading.Thread(
+        target=_run_langgraph_job, args=(job_id, inputs), daemon=True
+    )
     thread.start()
     return {"job_id": job_id}
 
@@ -173,6 +190,24 @@ def plan_status(job_id: str, from_index: int = 0) -> dict:
         "next_index": from_index + len(logs),
         "done": job["done"],
         "result": job["result"],
+        "error": job["error"],
+    }
+
+
+@app.get("/langgraph/plan/status/{job_id}")
+def langgraph_plan_status(job_id: str, from_index: int = 0) -> dict:
+    job = LANGGRAPH_JOBS.get(job_id)
+    if not job:
+        logger.warning("LangGraph job not found: %s", job_id)
+        raise HTTPException(status_code=404, detail="Job not found")
+    logger.debug("LangGraph job status requested: %s (%s)", job_id, from_index)
+    logs = job["logs"][from_index:]
+    return {
+        "logs": logs,
+        "next_index": from_index + len(logs),
+        "done": job["done"],
+        "result": job["result"],
+        "partial_result": job.get("partial_result"),
         "error": job["error"],
     }
 

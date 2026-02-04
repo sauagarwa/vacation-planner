@@ -24,6 +24,21 @@ h1 {
   font-size: 2rem;
 }
 
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  color: #1f2937;
+}
+
+.mode-toggle select {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+}
+
 .card {
   background: #fff;
   border-radius: 12px;
